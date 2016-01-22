@@ -107,7 +107,7 @@ function plugin_getheadercode_jquery()
     }
     
     //mg browser for forum
-    if(in_array('mediagallery', $_PLUGINS) && in_array('forum', $_PLUGINS)){
+    if(in_array('mediagallery', $_PLUGINS) && in_array('forum', $_PLUGINS) && stripos(COM_getCurrentURL(), 'createtopic.php') !== FALSE){
         //Forum 2.9.1
         $str .= '    jQuery(document).ready(function() {' . LB;
         $str .= '        jQuery(\'#form-forum-text\').after(\'<p>&nbsp;<a id="mg_browser" href="#">' . $LANG_JQUERY_1['add_mg_tag'] . '</a></p>\');' . LB;
