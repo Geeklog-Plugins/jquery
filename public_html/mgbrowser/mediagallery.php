@@ -1,8 +1,8 @@
 <?php
 // +---------------------------------------------------------------------------+
-// | Media Gallery Plugin 1.6                                                  |
+// | Media Gallery Plugin 1.7                                                  |
 // +---------------------------------------------------------------------------+
-// | Copyright (C) 2012 by the following authors:                              |
+// | Copyright (C) 2012-2016 by the following authors:                         |
 // |                                                                           |
 // | Author:                                                                   |
 // | Ben              - ben@geeklog.fr                                         |
@@ -95,7 +95,7 @@ function MG_popupFooter() {
     return '</body></html>';
 }
 
-if (!in_array('mediagallery', $_PLUGINS) {
+if (!in_array('mediagallery', $_PLUGINS)) {
     // The plugin is disabled
     $display = MG_popupHeader();
     $display .= COM_startBlock('Plugin disabled');
@@ -118,8 +118,6 @@ if ($_USER['uid'] < 2 && $_MG_CONF['loginrequired'] == 1) {
 * Main Function
 */
 
-MG_initAlbums();
-
 $album_id   = isset($_REQUEST['aid'])  ? COM_applyFilter($_REQUEST['aid'],true) : 0;
 $page       = isset($_REQUEST['page']) ? COM_applyFilter($_REQUEST['page'],true) : 1;
 $instance   = isset($_REQUEST['i'])    ? COM_applyFilter($_REQUEST['i']) : '';
@@ -127,10 +125,21 @@ $navigation = isset($_POST['navigation']) ? COM_applyFilter($_POST['navigation']
 if ($navigation == 'next') $page++;
 if ($navigation == 'prev') $page--;
 
-// check to make sure we have permissions to be here...
-$MG_albums[0]->access = 1;
+//Mediagallery 1.7+
+require_once $_CONF['path'] . 'plugins/mediagallery/include/common.php';
+require_once $_CONF['path'] . 'plugins/mediagallery/include/classAlbum.php';
 
-if ($MG_albums[$album_id]->access == 0 || ($MG_albums[$album_id]->hidden == 1 && $MG_albums[$album_id]->access !=3)) {
+$root_album = new mgAlbum(0); // root album
+$album      = new mgAlbum($album_id); // current album
+
+if ($root_album->access == 0 || ($root_album->hidden == 1 && $root_album->access != 3)) {
+    $display = COM_showMessageText($LANG_MG02['albumaccessdeny']);
+    $display = MG_createHTMLDocument($display);
+    COM_output($display);
+    exit;
+}     
+
+if ($album_id > 0 && ( $album->access == 0 || ($album->hidden == 1 && $album->access !=3) )) {
     $display  = MG_popupHeader();
     $display .= COM_startBlock ($LANG_ACCESS['accessdenied'], '',COM_getBlockTemplate ('_msg_block', 'header'))
              . '<br>' . $LANG_MG00['no_access']
@@ -147,12 +156,13 @@ $media_per_page   = $columns_per_page * $rows_per_page;
 // construct the album jumpbox...
 $level = 0;
 $album_jumpbox = $LANG_mgMB['select_album'] . ':&nbsp;<select name="aid" onchange="forms[\'mediabrowser\'].submit()">';
-$MG_albums[0]->buildJumpBox($album_id);
+$album->buildJumpBox($album_jumpbox, $album_id, 1, -1);
 $album_jumpbox .= '</select>' . LB;
 
 $page = $page - 1;
 
-$total_items_in_album = $MG_albums[$album_id]->media_count;
+$total_items_in_album = $album->media_count;
+
 $total_pages = ceil($total_items_in_album / $media_per_page);
 
 if ($page >= $total_pages) {
@@ -163,24 +173,26 @@ if ($page < 0) {
 }
 
 $begin = $media_per_page * $page;
+if ($begin < 0) $begin=0;
 $end   = $media_per_page;
 
 $album_jumpbox .= '<input type="hidden" name="page" value="' . ($page + 1) . '">&nbsp;' . LB;
 
 if ($album_id == 0) {
-    if (!empty($MG_albums[0]->children)) {
-        $children = $MG_albums[0]->getChildren();
+    if (!empty($root_album->children)) {
+        $children = $root_album->getChildren();
         foreach ($children as $child) {
-           if ($MG_albums[$child]->access > 0) {
-               $album_id = $MG_albums[$child]->id;
-			   $total_items_in_album = $MG_albums[$album_id]->media_count;
+           $albums[$child] = new mgAlbum($child);;
+           if ($albums[$child]->access > 0) {
+               $album_id = $albums[$child]->id;
+			   $total_items_in_album = $albums[$child]->media_count;
                break;
            }
        }
    }
 }
 
-if (!isset($MG_albums[$album_id]->id)) {
+if (!isset($album->id) && $album_id != 0) {
     $display = MG_popupHeader();
     COM_errorLog("Media Gallery Error - User attempted to view an album that does not exist.");
     $display .= COM_startBlock ($LANG_mgMB['error_header'], '',COM_getBlockTemplate ('_admin_block', 'header'));
@@ -213,8 +225,7 @@ $nRows  = DB_numRows($result);
 $mediaRows = 0;
 if ($nRows > 0) {
     while ($row = DB_fetchArray($result)) {
-        $media = new Media();
-        $media->constructor($row, $album_id);
+        $media = new Media($row, $album_id);
         $MG_media[$arrayCounter] = $media;
         $arrayCounter++;
         $mediaRows++;
@@ -243,7 +254,7 @@ $T->set_file (array(
 
 $T->set_var ('real_site_url', $_CONF['site_url']);
 
-$aOffset = $MG_albums[$album_id]->getOffset();
+$aOffset = $album->getOffset();
 $aPage = 1;
 if ($aOffset > 0) {
     $aPage = intval($aOffset / ($_MG_CONF['album_display_columns'] * $_MG_CONF['album_display_rows'])) + 1;
@@ -252,7 +263,7 @@ if ($aOffset > 0) {
 //$prev_disabled = ($current_print_page == 1) ? ' disabled' : '';
 //$next_disabled = ($current_print_page == $total_print_pages) ? ' disabled' : '';
 
-$birdseed = $MG_albums[$album_id]->getPath(0,$sortOrder);
+$birdseed = MG_getBirdseed($album_id, 0, $sortOrder, $page=0);
 
 $refresh = (isset($_REQUEST['refresh']) ? COM_applyFilter($_REQUEST['refresh'],true) : 0);
 
@@ -319,7 +330,7 @@ $T->set_var(array(
     's_form_action'         => $_SERVER['PHP_SELF'],
     'site_url'              => $_MG_CONF['site_url'],
     'birdseed'              => $birdseed,
-    'album_title'           => PLG_replaceTags($MG_albums[$album_id]->title),
+    'album_title'           => PLG_replaceTags($album->title),
     'table_columns'         => $columns_per_page,
     'table_column_width'    => intval(100 / $columns_per_page) . '%',
     'page_number'           => sprintf("%s %d %s %d",'', $current_print_page, '/', $total_print_pages),
@@ -418,7 +429,7 @@ if ($total_media > 0) {
 $T->parse('output', 'page');
 
 ob_start();
-echo MG_popupHeader(strip_tags($MG_albums[$album_id]->title));
+echo MG_popupHeader(strip_tags($album->title));
 echo $T->finish($T->get_var('output'));
 echo MG_popupFooter();
 $data = ob_get_contents();
