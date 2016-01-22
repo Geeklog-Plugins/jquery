@@ -69,7 +69,7 @@ $display .= COM_endBlock();
 if (function_exists('COM_createHTMLDocument')) {
     COM_output( COM_createHTMLDocument($display, array('pagetitle' =>  $LANG_JQUERY_1['plugin_name'])) );
 } else {
-    COM_output( COM_siteHeader('menu', $LANG_JQUERY_1['plugin_name']) . $display . COM_siteFooter() );
+    COM_output( COM_siteHeader('jquery', $LANG_JQUERY_1['plugin_name']) . $display . COM_siteFooter() );
 }
 
 
