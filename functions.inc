@@ -74,22 +74,9 @@ function plugin_getheadercode_jquery()
     $_SCRIPTS->setJavaScriptLibrary('jquery');
     
     //migrate plugin
-    $_SCRIPTS->setJavaScriptFile('migrate', '/jquery/js/jquery-migrate-1.2.1.js');
+     if (SEC_hasRights('jquery.admin')) $_SCRIPTS->setJavaScriptFile('migrate', '/jquery/js/jquery-migrate-1.2.1.js');
     
     $str = LB . LB . '<!-- Begin jquery plugin -->' . LB;
-
-    //Define the blogurl
-    $str .= '    var theblogurl ="'. $_CONF['site_url'] .'";' . LB;
-    // Lightbox
-    if($_JQ_CONF['use_lightbox'] == true){
-        $strext = '/jquery/js/jquery.lightbox-0.5.1.js';
-        $_SCRIPTS->setJavaScriptFile('jquery_lightbox', $strext);
-        $css = '/jquery/css/jquery.lightbox-0.5.css';
-        $_SCRIPTS->setCSSFile('jquery_lightbox_css', $css, true);
-        $str .= '    jQuery(document).ready(function() {' . LB;
-        $str .= '    jQuery(\'a.lightbox\').lightBox()' . LB;
-        $str .= '    });' . LB;
-    }
 
     // Feedback
     if($_JQ_CONF['use_feedback'] == true){
@@ -129,6 +116,28 @@ function plugin_getheadercode_jquery()
     return;
 }
 
+function JQUERY_getheadercode () {
+    
+    global $_CONF, $_JQ_CONF, $_SCRIPTS;
+    
+    //Define the blogurl
+    $str = '    var theblogurl ="'. $_CONF['site_url'] .'";' . LB;
+    // Lightbox
+    if($_JQ_CONF['use_lightbox'] == true){
+        $strext = '/jquery/js/jquery.lightbox-0.5.1.js';
+        $_SCRIPTS->setJavaScriptFile('jquery_lightbox', $strext);
+        $css = '/jquery/css/jquery.lightbox-0.5.css';
+        $_SCRIPTS->setCSSFile('jquery_lightbox_css', $css, true);
+        $str .= '    jQuery(document).ready(function() {' . LB;
+        $str .= '    jQuery(\'a.lightbox\').lightBox()' . LB;
+        $str .= '    });' . LB;
+    }
+    
+    $_SCRIPTS->setJavaScript($str, true);
+    
+    return;
+}
+
 /**
 * Implements a [lightbox:] autotag.
 *
@@ -153,6 +162,7 @@ function plugin_autotags_jquery($op, $content = '', $autotag = '')
         'lightbox' => $LANG_JQUERY_1['autotag_desc_lightbox']
         );
     } elseif ($op == 'parse') {
+        JQUERY_getheadercode ();
         $picture_url = COM_applyFilter($autotag['parm1']);
         //Thumbnail dimension idea from Ivy and Hiroron
         $width = '75'; 
