@@ -13,8 +13,6 @@
  * $Rev$
  */
 
-require_once '../lib-common.php';
- 
 /*
  * --- TimThumb CONFIGURATION ---
  * To edit the configs it is best to create a file called timthumb-config.php
@@ -22,7 +20,7 @@ require_once '../lib-common.php';
  * loaded by timthumb. This will save you having to re-edit these variables
  * everytime you download a new version
 */
-define ('VERSION', '2.8.13');                                                                                                                                           // Version of this script
+define ('VERSION', '2.8.14');                                                                                                                                           // Version of this script
 //Load a config file if it exists. Otherwise, use the values below
 if( file_exists(dirname(__FILE__) . '/timthumb-config.php'))    require_once('timthumb-config.php');
 if(! defined('DEBUG_ON') )                                      define ('DEBUG_ON', false);                                                             // Enable debug logging to web server error log (STDERR)
@@ -39,7 +37,7 @@ if(! defined('FILE_CACHE_TIME_BETWEEN_CLEANS')) define ('FILE_CACHE_TIME_BETWEEN
 if(! defined('FILE_CACHE_MAX_FILE_AGE') )       define ('FILE_CACHE_MAX_FILE_AGE', 86400);                              // How old does a file have to be to be deleted from the cache
 if(! defined('FILE_CACHE_SUFFIX') )             define ('FILE_CACHE_SUFFIX', '.timthumb.txt');                  // What to put at the end of all files in the cache directory so we can identify them
 if(! defined('FILE_CACHE_PREFIX') )             define ('FILE_CACHE_PREFIX', 'timthumb');                               // What to put at the beg of all files in the cache directory so we can identify them
-if(! defined('FILE_CACHE_DIRECTORY') )          define ('FILE_CACHE_DIRECTORY', $_CONF['path_images'] . '/cache');                             // Directory where images are cached. Left blank it will use the system temporary directory (which is better for security)
+if(! defined('FILE_CACHE_DIRECTORY') )          define ('FILE_CACHE_DIRECTORY', './cache');                             // Directory where images are cached. Left blank it will use the system temporary directory (which is better for security)
 if(! defined('MAX_FILE_SIZE') )                         define ('MAX_FILE_SIZE', 10485760);                                             // 10 Megs is 10485760. This is the max internal or external file size that we'll process.  
 if(! defined('CURL_TIMEOUT') )                          define ('CURL_TIMEOUT', 20);                                                    // Timeout duration for Curl. This only applies if you have Curl installed and aren't using PHP's default URL fetching mechanism.
 if(! defined('WAIT_BETWEEN_FETCH_ERRORS') )     define ('WAIT_BETWEEN_FETCH_ERRORS', 3600);                             // Time to wait between errors fetching remote file
@@ -961,9 +959,12 @@ class timthumb {
                 if(! preg_match('/^https?:\/\/[a-zA-Z0-9\.\-]+/i', $url)){
                         return $this->error("Invalid URL supplied.");
                 }
-                $url = preg_replace('/[^A-Za-z0-9\-\.\_\~:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=]+/', '', $url); //RFC 3986
-                //Very important we don't allow injection of shell commands here. URL is between quotes and we are only allowing through chars allowed by a the RFC
-                // which AFAIKT can't be used for shell injection.
+                $url = preg_replace('/[^A-Za-z0-9\-\.\_:\/\?\&\+\;\=]+/', '', $url); //RFC 3986 plus ()$ chars to prevent exploit below. Plus the following are also removed: @*!~#[]',
+                // 2014 update by Mark Maunder: This exploit: http://cxsecurity.com/issue/WLB-2014060134
+                // uses the $(command) shell execution syntax to execute arbitrary shell commands as the web server user.
+                // So we're now filtering out the characters: '$', '(' and ')' in the above regex to avoid this.
+                // We are also filtering out chars rarely used in URLs but legal accoring to the URL RFC which might be exploitable. These include: @*!~#[]',
+                // We're doing this because we're passing this URL to the shell and need to make very sure it's not going to execute arbitrary commands.
                 if(WEBSHOT_XVFB_RUNNING){
                         putenv('DISPLAY=:100.0');
                         $command = "$cuty $proxy --max-wait=$timeout --user-agent=\"$ua\" --javascript=$jsOn --java=$javaOn --plugins=$pluginsOn --js-can-open-windows=off --url=\"$url\" --out-format=$format --out=$tempfile";
@@ -1264,5 +1265,4 @@ class timthumb {
                 return $this->is404;
         }
 }
-
 ?>
